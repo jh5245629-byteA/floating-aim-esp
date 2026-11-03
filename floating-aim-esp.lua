@@ -25,6 +25,8 @@ local connections = {}
 local highlights = {}
 local aimEnabled = false
 local espEnabled = false
+local hitboxEnabled = false
+local originalHitboxes = {}
 
 local function connect(signal, callback)
     local connection = signal:Connect(callback)
@@ -53,7 +55,7 @@ round(square, 9)
 
 -- Menu
 local panel = Instance.new("Frame")
-panel.Size = UDim2.fromOffset(200, 160)
+panel.Size = UDim2.fromOffset(200, 210)
 panel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 panel.Visible = false
 panel.Parent = gui
@@ -138,6 +140,53 @@ makeToggle("Color ESP", 95, function()
         clearESP()
     end
     return espEnabled
+end)
+
+-- Client-side size change only: server-side hit validation may reject side shots.
+local function restoreHitboxes()
+    for part, original in pairs(originalHitboxes) do
+        if part.Parent then
+            pcall(function()
+                part.Size = original.Size
+                part.CanCollide = original.CanCollide
+            end)
+        end
+        originalHitboxes[part] = nil
+    end
+end
+
+makeToggle("Hitbox 50", 145, function()
+    hitboxEnabled = not hitboxEnabled
+    if not hitboxEnabled then restoreHitboxes() end
+    return hitboxEnabled
+end)
+
+task.spawn(function()
+    while gui.Parent do
+        if hitboxEnabled then
+            for _, other in ipairs(Players:GetPlayers()) do
+                if other ~= localPlayer then
+                    local character = other.Character
+                    local root = character and character:FindFirstChild("HumanoidRootPart")
+                    if root and root:IsA("BasePart") then
+                        pcall(function()
+                            if not originalHitboxes[root] then
+                                originalHitboxes[root] = {
+                                    Size = root.Size, CanCollide = root.CanCollide
+                                }
+                            end
+                            root.Size = Vector3.new(50, 50, 50)
+                            root.CanCollide = false
+                        end)
+                    end
+                end
+            end
+            for part in pairs(originalHitboxes) do
+                if not part.Parent then originalHitboxes[part] = nil end
+            end
+        end
+        task.wait(0.5)
+    end
 end)
 
 connect(close.MouseButton1Click, function()
@@ -330,6 +379,7 @@ task.spawn(function()
 end)
 
 gui.Destroying:Connect(function()
+    restoreHitboxes()
     RunService:UnbindFromRenderStep(renderName)
     clearESP()
 
