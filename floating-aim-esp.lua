@@ -26,6 +26,8 @@ local highlights = {}
 local aimEnabled = false
 local espEnabled = false
 local hitboxEnabled = false
+local box2DEnabled = false
+local overlays = {}
 local originalHitboxes = {}
 local hitboxBoxes = {}
 
@@ -56,7 +58,7 @@ round(square, 9)
 
 -- Menu
 local panel = Instance.new("Frame")
-panel.Size = UDim2.fromOffset(200, 210)
+panel.Size = UDim2.fromOffset(200, 260)
 panel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 panel.Visible = false
 panel.Parent = gui
@@ -164,6 +166,109 @@ makeToggle("Hitbox 50", 145, function()
     hitboxEnabled = not hitboxEnabled
     if not hitboxEnabled then restoreHitboxes() end
     return hitboxEnabled
+end)
+
+-- 2D player boxes and health bars, independent of the 3D highlight.
+local function clear2D()
+    for other, item in pairs(overlays) do
+        item.frame:Destroy()
+        overlays[other] = nil
+    end
+end
+
+makeToggle("2D Box + HP", 195, function()
+    box2DEnabled = not box2DEnabled
+    if not box2DEnabled then clear2D() end
+    return box2DEnabled
+end)
+
+local function createOverlay(other)
+    local frame = Instance.new("Frame")
+    frame.Name = "Player2DBox"
+    frame.BackgroundTransparency = 1
+    frame.BorderSizePixel = 0
+    frame.Visible = false
+    frame.ZIndex = 2
+    frame.Parent = gui
+
+    local outline = Instance.new("UIStroke")
+    outline.Color = Color3.fromHSV((other.UserId % 100) / 100, 1, 1)
+    outline.Thickness = 2
+    outline.Parent = frame
+
+    local background = Instance.new("Frame")
+    background.Position = UDim2.new(0, -8, 0, 0)
+    background.Size = UDim2.new(0, 5, 1, 0)
+    background.BackgroundColor3 = Color3.new(0, 0, 0)
+    background.BorderSizePixel = 0
+    background.ZIndex = 3
+    background.Parent = frame
+
+    local bar = Instance.new("Frame")
+    bar.AnchorPoint = Vector2.new(0, 1)
+    bar.Position = UDim2.new(0, 1, 1, -1)
+    bar.Size = UDim2.new(1, -2, 1, -2)
+    bar.BorderSizePixel = 0
+    bar.ZIndex = 4
+    bar.Parent = background
+
+    local label = Instance.new("TextLabel")
+    label.Position = UDim2.new(0, 0, 0, -19)
+    label.Size = UDim2.new(1, 0, 0, 18)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.TextStrokeTransparency = 0
+    label.TextSize = 12
+    label.Font = Enum.Font.GothamBold
+    label.ZIndex = 3
+    label.Parent = frame
+    return {frame = frame, bar = bar, label = label}
+end
+
+connect(RunService.RenderStepped, function()
+    if not box2DEnabled then return end
+    local camera = workspace.CurrentCamera
+    if not camera then return end
+    local active = {}
+    for _, other in ipairs(Players:GetPlayers()) do
+        if other ~= localPlayer then
+            local character = other.Character
+            local head = character and character:FindFirstChild("Head")
+            local root = character and character:FindFirstChild("HumanoidRootPart")
+            local human = character and character:FindFirstChildOfClass("Humanoid")
+            if head and root and human and human.Health > 0 and human.MaxHealth > 0 then
+                active[other] = true
+                local item = overlays[other]
+                if not item then
+                    item = createOverlay(other)
+                    overlays[other] = item
+                end
+                -- Use positions, not the root part size, so Hitbox 50 doesn't inflate the 2D box.
+                local top, topVisible = camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.8, 0))
+                local bottom = camera:WorldToViewportPoint(root.Position - Vector3.new(0, human.HipHeight + 1.2, 0))
+                local height = math.abs(bottom.Y - top.Y)
+                if topVisible and top.Z > 0 and bottom.Z > 0 and height >= 2 then
+                    height = math.clamp(height, 2, camera.ViewportSize.Y * 2)
+                    local width = height * 0.6
+                    item.frame.Position = UDim2.fromOffset(top.X - width / 2, math.min(top.Y, bottom.Y))
+                    item.frame.Size = UDim2.fromOffset(width, height)
+                    local fraction = math.clamp(human.Health / human.MaxHealth, 0, 1)
+                    item.bar.Size = UDim2.new(1, -2, fraction, -2 * fraction)
+                    item.bar.BackgroundColor3 = Color3.fromHSV(fraction / 3, 1, 1)
+                    item.label.Text = math.ceil(human.Health) .. " / " .. math.ceil(human.MaxHealth)
+                    item.frame.Visible = true
+                else
+                    item.frame.Visible = false
+                end
+            end
+        end
+    end
+    for other, item in pairs(overlays) do
+        if not active[other] then
+            item.frame:Destroy()
+            overlays[other] = nil
+        end
+    end
 end)
 
 task.spawn(function()
@@ -402,6 +507,7 @@ task.spawn(function()
 end)
 
 gui.Destroying:Connect(function()
+    clear2D()
     restoreHitboxes()
     RunService:UnbindFromRenderStep(renderName)
     clearESP()
