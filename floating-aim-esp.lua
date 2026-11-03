@@ -27,6 +27,7 @@ local aimEnabled = false
 local espEnabled = false
 local hitboxEnabled = false
 local originalHitboxes = {}
+local hitboxBoxes = {}
 
 local function connect(signal, callback)
     local connection = signal:Connect(callback)
@@ -144,6 +145,10 @@ end)
 
 -- Client-side size change only: server-side hit validation may reject side shots.
 local function restoreHitboxes()
+    for part, box in pairs(hitboxBoxes) do
+        box:Destroy()
+        hitboxBoxes[part] = nil
+    end
     for part, original in pairs(originalHitboxes) do
         if part.Parent then
             pcall(function()
@@ -177,12 +182,30 @@ task.spawn(function()
                             end
                             root.Size = Vector3.new(50, 50, 50)
                             root.CanCollide = false
+                            if not hitboxBoxes[root] then
+                                local box = Instance.new("BoxHandleAdornment")
+                                box.Name = "Hitbox50Visual"
+                                box.Adornee = root
+                                box.Size = Vector3.new(50, 50, 50)
+                                box.Color3 = Color3.fromHSV((other.UserId % 100) / 100, 1, 1)
+                                box.Transparency = 0.8
+                                box.AlwaysOnTop = true
+                                box.ZIndex = 1
+                                box.Parent = gui
+                                hitboxBoxes[root] = box
+                            end
                         end)
                     end
                 end
             end
             for part in pairs(originalHitboxes) do
-                if not part.Parent then originalHitboxes[part] = nil end
+                if not part.Parent then
+                    originalHitboxes[part] = nil
+                    if hitboxBoxes[part] then
+                        hitboxBoxes[part]:Destroy()
+                        hitboxBoxes[part] = nil
+                    end
+                end
             end
         end
         task.wait(0.5)
