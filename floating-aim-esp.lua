@@ -9,6 +9,80 @@ local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
 local FOV = 50
 
+-- Key input: checks format only. The public script can be bypassed.
+local oldKeyScreen = playerGui:FindFirstChild("FloatingAimESPKey")
+if oldKeyScreen then oldKeyScreen:Destroy() end
+local keyGui = Instance.new("ScreenGui")
+keyGui.Name = "FloatingAimESPKey"
+keyGui.ResetOnSpawn = false
+keyGui.Parent = playerGui
+local card = Instance.new("Frame")
+card.AnchorPoint = Vector2.new(0.5, 0.5)
+card.Position = UDim2.fromScale(0.5, 0.5)
+card.Size = UDim2.new(0.9, 0, 0, 190)
+card.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+card.Parent = keyGui
+local limit = Instance.new("UISizeConstraint")
+limit.MaxSize = Vector2.new(360, 190)
+limit.Parent = card
+local cardCorner = Instance.new("UICorner")
+cardCorner.Parent = card
+local heading = Instance.new("TextLabel")
+heading.Size = UDim2.new(1, -20, 0, 32)
+heading.Position = UDim2.fromOffset(10, 10)
+heading.BackgroundTransparency = 1
+heading.Text = "Enter your key"
+heading.TextColor3 = Color3.new(1, 1, 1)
+heading.TextSize = 19
+heading.Font = Enum.Font.GothamBold
+heading.Parent = card
+local keyBox = Instance.new("TextBox")
+keyBox.Size = UDim2.new(1, -24, 0, 44)
+keyBox.Position = UDim2.fromOffset(12, 50)
+keyBox.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+keyBox.TextColor3 = Color3.new(1, 1, 1)
+keyBox.PlaceholderText = "Paste the key from the app"
+keyBox.PlaceholderColor3 = Color3.fromRGB(190, 190, 190)
+keyBox.Text = ""
+keyBox.TextSize = 14
+keyBox.ClearTextOnFocus = false
+keyBox.Parent = card
+local inputCorner = Instance.new("UICorner")
+inputCorner.Parent = keyBox
+local submit = Instance.new("TextButton")
+submit.Size = UDim2.new(1, -24, 0, 40)
+submit.Position = UDim2.fromOffset(12, 101)
+submit.BackgroundColor3 = Color3.fromRGB(35, 140, 75)
+submit.TextColor3 = Color3.new(1, 1, 1)
+submit.Text = "Unlock"
+submit.TextSize = 16
+submit.Font = Enum.Font.GothamBold
+submit.Parent = card
+local submitCorner = Instance.new("UICorner")
+submitCorner.Parent = submit
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1, -24, 0, 32)
+status.Position = UDim2.fromOffset(12, 148)
+status.BackgroundTransparency = 1
+status.Text = ""
+status.TextColor3 = Color3.fromRGB(255, 125, 125)
+status.TextSize = 13
+status.TextWrapped = true
+status.Parent = card
+local unlocked = false
+submit.MouseButton1Click:Connect(function()
+    local key = string.upper(keyBox.Text):gsub("^%s+", ""):gsub("%s+$", "")
+    local a, b, c, d = key:match("^KEY%-(%x+)%-(%x+)%-(%x+)%-(%x+)$")
+    if a and #a == 8 and #b == 8 and #c == 8 and #d == 8 then
+        unlocked = true
+    else
+        status.Text = "Invalid format. Generate a key in the app."
+    end
+end)
+while keyGui.Parent and not unlocked do task.wait(0.1) end
+if not unlocked then return end
+keyGui:Destroy()
+
 -- Remove the previous copy.
 local previous = playerGui:FindFirstChild("FloatingAimESP")
 if previous then
