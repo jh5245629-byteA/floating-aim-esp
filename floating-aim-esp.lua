@@ -130,6 +130,33 @@ square.Font = Enum.Font.GothamBold
 square.Parent = gui
 round(square, 9)
 
+-- Show the chosen picture on the draggable menu button, if the executor
+-- supports writing files and converting them to a local Roblox asset.
+task.spawn(function()
+    local ok = pcall(function()
+        if type(writefile) ~= "function" or type(getcustomasset) ~= "function" then return end
+        local path = "floating-aim-esp-menu-photo.jpg"
+        local url = "https://raw.githubusercontent.com/jh5245629-byteA/floating-aim-esp/refs/heads/main/menu-photo.jpg"
+        local data = game:HttpGet(url)
+        if type(data) ~= "string" or #data == 0 then return end
+        writefile(path, data)
+        local asset = getcustomasset(path)
+        if not gui.Parent or type(asset) ~= "string" or asset == "" then return end
+        local picture = Instance.new("ImageLabel")
+        picture.Name = "MenuPhoto"
+        picture.Size = UDim2.fromScale(1, 1)
+        picture.BackgroundTransparency = 1
+        picture.Image = asset
+        picture.ScaleType = Enum.ScaleType.Crop
+        picture.Active = false
+        picture.Parent = square
+        round(picture, 9)
+        square.Text = ""
+        square.ClipsDescendants = true
+    end)
+    if not ok then warn("Menu photo could not be loaded; using the + button instead.") end
+end)
+
 -- Menu
 local panel = Instance.new("Frame")
 panel.Size = UDim2.fromOffset(200, 260)
