@@ -72,11 +72,16 @@ status.Parent = card
 local unlocked = false
 submit.MouseButton1Click:Connect(function()
     local key = string.upper(keyBox.Text):gsub("^%s+", ""):gsub("%s+$", "")
-    local a, b, c, d = key:match("^KEY%-(%x+)%-(%x+)%-(%x+)%-(%x+)$")
-    if a and #a == 8 and #b == 8 and #c == 8 and #d == 8 then
-        unlocked = true
+    local expiry, token = key:match("^KEY%-(%d+)%-(%x+)$")
+    expiry = tonumber(expiry)
+    if expiry and token and #token == 32 then
+        if os.time() < expiry then
+            unlocked = true
+        else
+            status.Text = "This key has expired. Generate a new one."
+        end
     else
-        status.Text = "Invalid format. Generate a key in the app."
+        status.Text = "Invalid key. Generate one in the Timed Key Generator app."
     end
 end)
 while keyGui.Parent and not unlocked do task.wait(0.1) end
